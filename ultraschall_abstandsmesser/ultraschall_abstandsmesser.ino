@@ -1,10 +1,27 @@
+#include <TimerFive.h>
 #define DIGIT_DELAY 2
-#define ECHO_PIN    10
-#define BAUDRATE    9600
-#define PC4MASK     B00010000
-#define PB5MASK     B00100000
-#define SAMPLES     1
-#define DISPLAYREP  10
+
+#define ECHO_PIN      10
+#define IO            PORTB
+#define IODDR         DDRB
+
+#define BAUDRATE      9600
+
+#define PC4MASK       B00010000
+#define PB5MASK       B00100000
+
+#define SAMPLES       10
+#define DISPLAYREP    100
+
+#define ANODEPORT     PORTF
+#define ANODEDDR      DDRF
+
+#define KATHODEPORT   PORTK
+#define KATHODEDDR    DDRK
+
+#define BEEPER        B01000000
+#define BEEPINTERVAL  400L
+#define THRESHOLD     150
 
 char numbers[10] = {
     B00111111,
@@ -21,35 +38,53 @@ char numbers[10] = {
 
 volatile int shownumber;
 
+volatile beep(){
+  IO ^= BEEPER;
+}
+
 void setup() {
   //Serial.begin(BAUDRATE);
-  DDRB = B00100000;
-  DDRK = B00101111;
-  DDRC |= PC4MASK;
-  DDRF = B11111111;
-  shownumber = 0;
+  IODDR = B01100000;
+  KATHODEDDR = B00101111;
+  ANODEDDR = B11111111;
+
+  Timer5.attachInterrupt(beep);
+  Timer5.initialize(1000L * BEEPINTERVAL);
+  Timer5.stop();
 }
 
 void loop() {
   static float duration, distance;
-  unsigned int sum = 0;
+  static bool timerstate = false;
+  unsigned long sum = 0;
+  duration = 0;
+
   for (int i = 0; i < SAMPLES; i++) {
   //for(;;){  
-    PORTB |= PB5MASK;
+    IO |= PB5MASK;
     delayMicroseconds(2);
-    PORTB &= ~PB5MASK;
+    IO &= ~PB5MASK;
     delayMicroseconds(10);
-    PORTB |= PB5MASK;
+    IO |= PB5MASK;
 
-    duration = pulseIn(ECHO_PIN, HIGH);
-    distance = (duration * .0343) / 2 * 10; // In Millimetern
-    sum += distance;
+    duration += pulseIn(ECHO_PIN, HIGH);
+  }
+  duration /= SAMPLES;
+  distance = (duration * .0343) / 2 * 10 ;
+
+  if (distance <= THRESHOLD && !timerstate){
+    Timer5.start();
+    timerstate = true;
+  }
+  else if (distance > THRESHOLD && timerstate){
+    Timer5.stop();
+    IO &= ~BEEPER;
+    timerstate = false;
   }
 
   for(int i = 0; i < DISPLAYREP; i++)
-    showNumber(sum/100);
+    showNumber((unsigned int) distance);
 
-//  beep_on();
 }
 
 void showNumber(unsigned int value) {
@@ -57,14 +92,13 @@ void showNumber(unsigned int value) {
   unsigned char mask = 0xf7;
   for(unsigned int i = 0; i < 4; i++)
   {
-    PORTK = mask;
-    PORTF = numbers[value % 10];
+    KATHODEPORT = mask;
+    ANODEPORT = numbers[value % 10];
     value /= 10;
     delay(DIGIT_DELAY);
     mask >>= 1;
   }
 }
-void beep_on()
-{
-  PORTC |= PC4MASK;
-}
+
+
+
