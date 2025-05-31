@@ -22,6 +22,7 @@
 #define BEEPER        B01000000
 #define BEEPINTERVAL  400L
 #define THRESHOLD     150
+#define THRESHOLD2    50
 
 char numbers[10] = {
     B00111111,
@@ -72,11 +73,21 @@ void loop() {
   duration /= SAMPLES;
   distance = (duration * .0343) / 2 * 10 ;
 
-  if (distance <= THRESHOLD && !timerstate){
+  if (distance <= THRESHOLD && distance > THRESHOLD2 && !timerstate){
     Timer5.start();
     timerstate = true;
   }
   else if (distance > THRESHOLD && timerstate){
+    Timer5.stop();
+    IO &= ~BEEPER;
+    timerstate = false;
+  } 
+  else if (distance <= THRESHOLD2){
+    Timer5.stop();
+    IO |= BEEPER;
+    timerstate = false;
+  } 
+  else if(distance > THRESHOLD2 && !timerstate){
     Timer5.stop();
     IO &= ~BEEPER;
     timerstate = false;
