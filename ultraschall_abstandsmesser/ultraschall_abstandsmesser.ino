@@ -40,15 +40,16 @@ volatile beep() {                   // Toggle beeper on / off
 }
 
 void showNumber(unsigned int value) {
-  unsigned char mask = 0xf7;
+  unsigned char mask = 0xf7;        // left most digit on
   for(unsigned int i = 0; i < 4; i++)
   {
-    CATHODEPORT = mask;
-    ANODEPORT = numbers[value % 10];
-    value /= 10;
-    delay(DIGIT_DELAY);
-    mask >>= 1;
+    CATHODEPORT = mask;             // Activate digit
+    ANODEPORT = numbers[value % 10];// Display one decimal digit
+    value /= 10;                    // Shift value to the right (decimal)
+    delay(DIGIT_DELAY);             // Wait a moment
+    mask >>= 1;                     // Prepare to display next digit
   }
+  CATHODEPORT = 0xff;               // Switch off the display again
 }
 
 void setup() {
